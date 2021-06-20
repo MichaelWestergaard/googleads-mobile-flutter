@@ -17,26 +17,22 @@ package io.flutter.plugins.googlemobileads;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import com.google.android.gms.ads.LoadAdError;
-import com.google.android.gms.ads.OnUserEarnedRewardListener;
-import com.google.android.gms.ads.rewarded.OnAdMetadataChangedListener;
 import com.google.android.gms.ads.rewarded.RewardItem;
 import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdCallback;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 
-/** A wrapper for {@link RewardedAd}. */
 class FlutterRewardedAd extends FlutterAd.FlutterOverlayAd {
   private static final String TAG = "FlutterRewardedAd";
 
   @NonNull private final AdInstanceManager manager;
   @NonNull private final String adUnitId;
-  @NonNull private final FlutterAdLoader flutterAdLoader;
   @Nullable private final FlutterAdRequest request;
-  @Nullable private final FlutterAdManagerAdRequest adManagerRequest;
-  @Nullable private final FlutterServerSideVerificationOptions serverSideVerificationOptions;
+  @Nullable private final FlutterPublisherAdRequest publisherRequest;
   @Nullable RewardedAd rewardedAd;
 
-  /** A wrapper for {@link RewardItem}. */
   static class FlutterRewardItem {
     @NonNull final Integer amount;
     @NonNull final String type;
@@ -69,66 +65,46 @@ class FlutterRewardedAd extends FlutterAd.FlutterOverlayAd {
     }
   }
 
-  /** Constructor for AdMob Ad Request. */
   public FlutterRewardedAd(
       @NonNull AdInstanceManager manager,
       @NonNull String adUnitId,
-      @NonNull FlutterAdRequest request,
-      @Nullable FlutterServerSideVerificationOptions serverSideVerificationOptions,
-      @NonNull FlutterAdLoader flutterAdLoader) {
+      @NonNull FlutterAdRequest request) {
     this.manager = manager;
     this.adUnitId = adUnitId;
     this.request = request;
-    this.adManagerRequest = null;
-    this.serverSideVerificationOptions = serverSideVerificationOptions;
-    this.flutterAdLoader = flutterAdLoader;
+    this.publisherRequest = null;
   }
 
-  /** Constructor for Ad Manager Ad request. */
   public FlutterRewardedAd(
       @NonNull AdInstanceManager manager,
       @NonNull String adUnitId,
-      @NonNull FlutterAdManagerAdRequest adManagerRequest,
-      @Nullable FlutterServerSideVerificationOptions serverSideVerificationOptions,
-      @NonNull FlutterAdLoader flutterAdLoader) {
+      @NonNull FlutterPublisherAdRequest publisherRequest) {
     this.manager = manager;
     this.adUnitId = adUnitId;
-    this.adManagerRequest = adManagerRequest;
+    this.publisherRequest = publisherRequest;
     this.request = null;
-    this.serverSideVerificationOptions = serverSideVerificationOptions;
-    this.flutterAdLoader = flutterAdLoader;
   }
 
   @Override
   void load() {
+    rewardedAd = createRewardedAd();
     final RewardedAdLoadCallback adLoadCallback =
         new RewardedAdLoadCallback() {
           @Override
-          public void onAdLoaded(@NonNull RewardedAd rewardedAd) {
-            FlutterRewardedAd.this.rewardedAd = rewardedAd;
-            if (serverSideVerificationOptions != null) {
-              rewardedAd.setServerSideVerificationOptions(
-                  serverSideVerificationOptions.asServerSideVerificationOptions());
-            }
-            manager.onAdLoaded(FlutterRewardedAd.this, rewardedAd.getResponseInfo());
-            rewardedAd.setOnPaidEventListener(
-                new FlutterPaidEventListener(manager, FlutterRewardedAd.this));
-
-            super.onAdLoaded(rewardedAd);
+          public void onRewardedAdLoaded() {
+            manager.onAdLoaded(FlutterRewardedAd.this);
           }
 
           @Override
-          public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+          public void onRewardedAdFailedToLoad(LoadAdError loadAdError) {
             manager.onAdFailedToLoad(FlutterRewardedAd.this, new FlutterLoadAdError(loadAdError));
           }
         };
 
     if (request != null) {
-      flutterAdLoader.loadRewarded(
-          manager.activity, adUnitId, request.asAdRequest(), adLoadCallback);
-    } else if (adManagerRequest != null) {
-      flutterAdLoader.loadAdManagerRewarded(
-          manager.activity, adUnitId, adManagerRequest.asAdManagerAdRequest(), adLoadCallback);
+      rewardedAd.loadAd(request.asAdRequest(), adLoadCallback);
+    } else if (publisherRequest != null) {
+      rewardedAd.loadAd(publisherRequest.asPublisherAdRequest(), adLoadCallback);
     } else {
       Log.e(TAG, "A null or invalid ad request was provided.");
     }
@@ -136,28 +112,36 @@ class FlutterRewardedAd extends FlutterAd.FlutterOverlayAd {
 
   @Override
   public void show() {
-    if (rewardedAd == null) {
+    if (rewardedAd == null || !rewardedAd.isLoaded()) {
       Log.e(TAG, "The rewarded ad wasn't loaded yet.");
       return;
     }
 
-    rewardedAd.setFullScreenContentCallback(new FlutterFullScreenContentCallback(manager, this));
-    rewardedAd.setOnAdMetadataChangedListener(
-        new OnAdMetadataChangedListener() {
+    final RewardedAdCallback adCallback =
+        new RewardedAdCallback() {
           @Override
-          public void onAdMetadataChanged() {
-            manager.onAdMetadataChanged(FlutterRewardedAd.this);
+          public void onRewardedAdOpened() {
+            manager.onAdOpened(FlutterRewardedAd.this);
           }
-        });
-    rewardedAd.show(
-        manager.activity,
-        new OnUserEarnedRewardListener() {
+
           @Override
-          public void onUserEarnedReward(@NonNull RewardItem rewardItem) {
+          public void onRewardedAdClosed() {
+            manager.onAdClosed(FlutterRewardedAd.this);
+          }
+
+          @Override
+          public void onUserEarnedReward(@NonNull RewardItem reward) {
             manager.onRewardedAdUserEarnedReward(
                 FlutterRewardedAd.this,
-                new FlutterRewardItem(rewardItem.getAmount(), rewardItem.getType()));
+                new FlutterRewardItem(reward.getAmount(), reward.getType()));
           }
-        });
+        };
+    rewardedAd.show(manager.activity, adCallback);
+  }
+
+  @NonNull
+  @VisibleForTesting
+  RewardedAd createRewardedAd() {
+    return new RewardedAd(manager.activity, adUnitId);
   }
 }

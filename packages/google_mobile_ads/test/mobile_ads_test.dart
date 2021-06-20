@@ -42,12 +42,10 @@ void main() {
               'aName': AdapterStatus(
                 AdapterInitializationState.notReady,
                 'desc',
-                0,
+                null,
               ),
             });
           case '_init':
-            return null;
-          case 'MobileAds#setSameAppKeyEnabled':
             return null;
           default:
             assert(false);
@@ -58,7 +56,7 @@ void main() {
 
     test('encode/decode $AdapterInitializationState', () {
       final ByteData byteData =
-          codec.encodeMessage(AdapterInitializationState.ready)!;
+          codec.encodeMessage(AdapterInitializationState.ready);
 
       final AdapterInitializationState result = codec.decodeMessage(byteData);
       expect(result, AdapterInitializationState.ready);
@@ -70,7 +68,7 @@ void main() {
         AdapterInitializationState.notReady,
         'describe',
         23,
-      ))!;
+      ));
 
       AdapterStatus result = codec.decodeMessage(byteData);
       expect(result.state, AdapterInitializationState.notReady);
@@ -87,7 +85,7 @@ void main() {
     test('handle int values for AdapterStatus', () {
       final WriteBuffer buffer = WriteBuffer();
       codec.writeValue(buffer, AdapterInitializationState.ready);
-      codec.writeValue(buffer, 'aDescription');
+      codec.writeValue(buffer, null);
       codec.writeValue(buffer, 23);
 
       expect(
@@ -105,49 +103,31 @@ void main() {
         'adMediation': AdapterStatus(
           AdapterInitializationState.ready,
           'aDescription',
-          0,
+          null,
         ),
-      }))!;
+      }));
 
       final InitializationStatus result = codec.decodeMessage(byteData);
       expect(result.adapterStatuses, hasLength(1));
-      final AdapterStatus status = result.adapterStatuses['adMediation']!;
+      final AdapterStatus status = result.adapterStatuses['adMediation'];
       expect(status.state, AdapterInitializationState.ready);
       expect(status.description, 'aDescription');
-      expect(status.latency, 0);
+      expect(status.latency, null);
     });
 
     test('$MobileAds.initialize', () async {
       final InitializationStatus result = await MobileAds.instance.initialize();
 
       expect(log, <Matcher>[
-        isMethodCall('_init', arguments: null),
-        isMethodCall('MobileAds#initialize', arguments: null)
+        isMethodCall("_init", arguments: null),
+        isMethodCall("MobileAds#initialize", arguments: null)
       ]);
 
       expect(result.adapterStatuses, hasLength(1));
-      final AdapterStatus status = result.adapterStatuses['aName']!;
+      final AdapterStatus status = result.adapterStatuses['aName'];
       expect(status.state, AdapterInitializationState.notReady);
       expect(status.description, 'desc');
-      expect(status.latency, 0);
-    });
-
-    test('$MobileAds.setSameAppKeyEnabled', () async {
-      await MobileAds.instance.setSameAppKeyEnabled(true);
-
-      expect(log, <Matcher>[
-        isMethodCall('MobileAds#setSameAppKeyEnabled',
-            arguments: {'isEnabled': true})
-      ]);
-
-      await MobileAds.instance.setSameAppKeyEnabled(false);
-
-      expect(log, <Matcher>[
-        isMethodCall('MobileAds#setSameAppKeyEnabled',
-            arguments: {'isEnabled': true}),
-        isMethodCall('MobileAds#setSameAppKeyEnabled',
-            arguments: {'isEnabled': false})
-      ]);
+      expect(status.latency, null);
     });
   });
 }

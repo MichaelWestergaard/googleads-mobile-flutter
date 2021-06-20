@@ -31,8 +31,6 @@
   NSObject<FlutterMethodCodec> *_methodCodec;
 }
 
-static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
-
 - (void)setUp {
   _mockMessenger = OCMProtocolMock(@protocol(FlutterBinaryMessenger));
   _manager = [[FLTAdInstanceManager alloc] initWithBinaryMessenger:_mockMessenger];
@@ -40,7 +38,7 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
       codecWithReaderWriter:[[FLTGoogleMobileAdsReaderWriter alloc] init]];
 }
 
-- (void)testAdInstanceManagerLoadAd {
+- (void)testLoadAd {
   FLTAdSize *size = [[FLTAdSize alloc] initWithWidth:@(1) height:@(2)];
   FLTBannerAd *bannerAd =
       [[FLTBannerAd alloc] initWithAdUnitId:@"testId"
@@ -58,7 +56,200 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
   XCTAssertEqualObjects([_manager adIdFor:bannerAd], @(1));
 }
 
-- (void)testAdInstanceManagerDisposeAd {
+- (void)testLoadInterstitialAd {
+  FLTAdRequest *request = [[FLTAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTInterstitialAd *ad =
+      [[FLTInterstitialAd alloc] initWithAdUnitId:@"testId"
+                                          request:request
+                               rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTInterstitialAd *mockInterstitialAd = OCMPartialMock(ad);
+  GADInterstitial *mockInterstitial = OCMClassMock([GADInterstitial class]);
+  OCMStub([mockInterstitialAd interstitial]).andReturn(mockInterstitial);
+  [mockInterstitialAd load];
+
+  OCMVerify([mockInterstitial loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                                GADRequest *requestArg = obj;
+                                return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                              }]]);
+}
+
+- (void)testLoadBannerAd {
+  FLTAdRequest *request = [[FLTAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTBannerAd *ad = [[FLTBannerAd alloc] initWithAdUnitId:@"testId"
+                                                     size:[[FLTAdSize alloc] initWithWidth:@(1)
+                                                                                    height:@(2)]
+                                                  request:request
+                                       rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTBannerAd *mockBannerAd = OCMPartialMock(ad);
+  GADBannerView *mockView = OCMClassMock([GADBannerView class]);
+  OCMStub([mockBannerAd bannerView]).andReturn(mockView);
+  [mockBannerAd load];
+
+  OCMVerify([mockView loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                        GADRequest *requestArg = obj;
+                        return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                      }]]);
+}
+
+- (void)testLoadPublisherBannerAd {
+  FLTPublisherAdRequest *request = [[FLTPublisherAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTPublisherBannerAd *ad = [[FLTPublisherBannerAd alloc]
+        initWithAdUnitId:@"testId"
+                   sizes:@[ [[FLTAdSize alloc] initWithWidth:@(1) height:@(2)] ]
+                 request:request
+      rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTPublisherBannerAd *mockBannerAd = OCMPartialMock(ad);
+  DFPBannerView *mockView = OCMClassMock([DFPBannerView class]);
+  OCMStub([mockBannerAd bannerView]).andReturn(mockView);
+  [mockBannerAd load];
+
+  OCMVerify([mockView loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                        GADRequest *requestArg = obj;
+                        return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                      }]]);
+}
+
+- (void)testLoadPublisherInterstitialAd {
+  FLTPublisherAdRequest *request = [[FLTPublisherAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTPublisherInterstitialAd *ad =
+      [[FLTPublisherInterstitialAd alloc] initWithAdUnitId:@"testId"
+                                                   request:request
+                                        rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTPublisherInterstitialAd *mockInterstitialAd = OCMPartialMock(ad);
+  DFPInterstitial *mockAd = OCMClassMock([DFPInterstitial class]);
+  OCMStub([mockInterstitialAd interstitial]).andReturn(mockAd);
+  [mockInterstitialAd load];
+
+  OCMVerify([mockAd loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                      DFPRequest *requestArg = obj;
+                      return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                    }]]);
+}
+
+- (void)testShowPublisherInterstitialAd {
+  FLTPublisherAdRequest *request = [[FLTPublisherAdRequest alloc] init];
+  FLTPublisherInterstitialAd *ad =
+      [[FLTPublisherInterstitialAd alloc] initWithAdUnitId:@"testId"
+                                                   request:request
+                                        rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTPublisherInterstitialAd *mockInterstitialAd = OCMPartialMock(ad);
+  DFPInterstitial *mockAd = OCMClassMock([DFPInterstitial class]);
+  OCMStub([mockInterstitialAd interstitial]).andReturn(mockAd);
+
+  OCMStub([mockAd isReady]).andReturn(YES);
+  [mockInterstitialAd show];
+  OCMVerify([mockAd presentFromRootViewController:OCMOCK_ANY]);
+}
+
+- (void)testLoadNativeAd {
+  FLTAdRequest *request = [[FLTAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTNativeAd *ad =
+      [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
+                                    request:request
+                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
+                              customOptions:nil
+                         rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTNativeAd *mockNativeAd = OCMPartialMock(ad);
+  GADAdLoader *mockLoader = OCMClassMock([GADAdLoader class]);
+  OCMStub([mockNativeAd adLoader]).andReturn(mockLoader);
+  [mockNativeAd load];
+
+  OCMVerify([mockLoader loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                          GADRequest *requestArg = obj;
+                          return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                        }]]);
+}
+
+- (void)testLoadRewardedAd {
+  FLTAdRequest *request = [[FLTAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTRewardedAd *ad =
+      [[FLTRewardedAd alloc] initWithAdUnitId:@"testId"
+                                      request:request
+                           rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTRewardedAd *mockFltAd = OCMPartialMock(ad);
+  GADRewardedAd *mockRewardedAd = OCMClassMock([GADRewardedAd class]);
+  OCMStub([mockFltAd rewardedAd]).andReturn(mockRewardedAd);
+  [mockFltAd load];
+
+  OCMVerify([mockRewardedAd loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                              GADRequest *requestArg = obj;
+                              return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                            }]
+                      completionHandler:[OCMArg any]]);
+}
+
+- (void)testShowRewardedAd {
+  FLTAdRequest *request = [[FLTAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTRewardedAd *ad =
+      [[FLTRewardedAd alloc] initWithAdUnitId:@"testId"
+                                      request:request
+                           rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTRewardedAd *mockFltAd = OCMPartialMock(ad);
+  GADRewardedAd *mockRewardedAd = OCMClassMock([GADRewardedAd class]);
+  OCMStub([mockFltAd rewardedAd]).andReturn(mockRewardedAd);
+
+  OCMStub([mockRewardedAd isReady]).andReturn(YES);
+  [mockFltAd show];
+  OCMVerify([mockRewardedAd presentFromRootViewController:OCMOCK_ANY delegate:OCMOCK_ANY]);
+}
+
+- (void)testLoadRewardedAdWithPublisherRequest {
+  FLTPublisherAdRequest *request = [[FLTPublisherAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTRewardedAd *ad =
+      [[FLTRewardedAd alloc] initWithAdUnitId:@"testId"
+                                      request:request
+                           rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTRewardedAd *mockFltAd = OCMPartialMock(ad);
+  GADRewardedAd *mockRewardedAd = OCMClassMock([GADRewardedAd class]);
+  OCMStub([mockFltAd rewardedAd]).andReturn(mockRewardedAd);
+  [mockFltAd load];
+
+  OCMVerify([mockRewardedAd loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                              DFPRequest *requestArg = obj;
+                              return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                            }]
+                      completionHandler:[OCMArg any]]);
+}
+
+- (void)testLoadNativeAdWithPublisherRequest {
+  FLTPublisherAdRequest *request = [[FLTPublisherAdRequest alloc] init];
+  request.keywords = @[ @"apple" ];
+  FLTNativeAd *ad =
+      [[FLTNativeAd alloc] initWithAdUnitId:@"testId"
+                                    request:request
+                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
+                              customOptions:nil
+                         rootViewController:OCMClassMock([UIViewController class])];
+
+  FLTNativeAd *mockFltAd = OCMPartialMock(ad);
+  GADAdLoader *mockAdLoader = OCMClassMock([GADAdLoader class]);
+  OCMStub([mockFltAd adLoader]).andReturn(mockAdLoader);
+  [mockFltAd load];
+
+  OCMVerify([mockAdLoader loadRequest:[OCMArg checkWithBlock:^BOOL(id obj) {
+                            DFPRequest *requestArg = obj;
+                            return [requestArg.keywords isEqualToArray:@[ @"apple" ]];
+                          }]]);
+}
+
+- (void)testDisposeAd {
   FLTAdSize *size = [[FLTAdSize alloc] initWithWidth:@(1) height:@(2)];
   FLTBannerAd *bannerAd =
       [[FLTBannerAd alloc] initWithAdUnitId:@"testId"
@@ -75,7 +266,7 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
   XCTAssertNil([_manager adIdFor:bannerAd]);
 }
 
-- (void)testAdInstanceManagerDisposeAllAds {
+- (void)testDisposeAllAds {
   FLTAdSize *size = [[FLTAdSize alloc] initWithWidth:@(1) height:@(2)];
   FLTBannerAd *bannerAd1 =
       [[FLTBannerAd alloc] initWithAdUnitId:@"testId"
@@ -103,7 +294,7 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
   XCTAssertNil([_manager adIdFor:bannerAd2]);
 }
 
-- (void)testAdInstanceManagerOnAdLoaded {
+- (void)testOnAdLoaded {
   FLTNativeAd *ad =
       [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
                                     request:[[FLTAdRequest alloc] init]
@@ -112,21 +303,15 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
                          rootViewController:OCMClassMock([UIViewController class])];
   [_manager loadAd:ad adId:@(1)];
 
-  GADResponseInfo *responseInfo = OCMClassMock([GADResponseInfo class]);
-  FLTGADResponseInfo *fltResponseInfo =
-      [[FLTGADResponseInfo alloc] initWithResponseInfo:responseInfo];
-  [_manager onAdLoaded:ad responseInfo:responseInfo];
+  [_manager onAdLoaded:ad];
   NSData *data = [_methodCodec
-      encodeMethodCall:[FlutterMethodCall methodCallWithMethodName:@"onAdEvent"
-                                                         arguments:@{
-                                                           @"adId" : @1,
-                                                           @"eventName" : @"onAdLoaded",
-                                                           @"responseInfo" : fltResponseInfo,
-                                                         }]];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:data]);
+      encodeMethodCall:[FlutterMethodCall
+                           methodCallWithMethodName:@"onAdEvent"
+                                          arguments:@{@"adId" : @1, @"eventName" : @"onAdLoaded"}]];
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
 }
 
-- (void)testAdInstanceManagerOnAdFailedToLoad {
+- (void)testOnAdFailedToLoad {
   FLTNativeAd *ad =
       [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
                                     request:[[FLTAdRequest alloc] init]
@@ -135,42 +320,21 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
                          rootViewController:OCMClassMock([UIViewController class])];
   [_manager loadAd:ad adId:@(1)];
 
-  NSDictionary *userInfo = @{NSLocalizedDescriptionKey : @"message"};
-  NSError *error = [NSError errorWithDomain:@"domain" code:1 userInfo:userInfo];
-
-  FLTLoadAdError *loadAdError = [[FLTLoadAdError alloc] initWithError:error];
+  FLTLoadAdError *error = [[FLTLoadAdError alloc] initWithCode:@(1)
+                                                        domain:@"domain"
+                                                       message:@"message"];
   [_manager onAdFailedToLoad:ad error:error];
   NSData *data = [_methodCodec
       encodeMethodCall:[FlutterMethodCall methodCallWithMethodName:@"onAdEvent"
                                                          arguments:@{
                                                            @"adId" : @1,
                                                            @"eventName" : @"onAdFailedToLoad",
-                                                           @"loadAdError" : loadAdError,
+                                                           @"loadAdError" : error,
                                                          }]];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:data]);
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
 }
 
-- (void)testAdInstanceManagerOnAdFailedToShow {
-  FLTInterstitialAd *ad = OCMClassMock([FLTInterstitialAd class]);
-  [_manager loadAd:ad adId:@(1)];
-
-  NSDictionary *userInfo = @{NSLocalizedDescriptionKey : @"message"};
-  NSError *error = [NSError errorWithDomain:@"domain" code:1 userInfo:userInfo];
-
-  [_manager didFailToPresentFullScreenContentWithError:ad error:error];
-  NSData *data = [_methodCodec
-      encodeMethodCall:[FlutterMethodCall
-                           methodCallWithMethodName:@"onAdEvent"
-                                          arguments:@{
-                                            @"adId" : @1,
-                                            @"eventName" :
-                                                @"didFailToPresentFullScreenContentWithError",
-                                            @"error" : error,
-                                          }]];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:data]);
-}
-
-- (void)testAdInstanceManagerOnAppEvent {
+- (void)testOnAppEvent {
   FLTNativeAd *ad =
       [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
                                     request:[[FLTAdRequest alloc] init]
@@ -189,10 +353,10 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
                                                            @"name" : @"color",
                                                            @"data" : @"red"
                                                          }]];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:data]);
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
 }
 
-- (void)testAdInstanceManagerOnNativeAdEvents {
+- (void)testOnNativeAdClicked {
   FLTNativeAd *ad =
       [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
                                     request:[[FLTAdRequest alloc] init]
@@ -202,31 +366,92 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
   [_manager loadAd:ad adId:@(1)];
 
   [_manager onNativeAdClicked:ad];
-  NSData *clickData = [self getDataForEvent:@"onNativeAdClicked" adId:@1];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:clickData]);
-
-  [_manager onNativeAdImpression:ad];
-  NSData *impressionData = [self getDataForEvent:@"onNativeAdImpression" adId:@1];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:impressionData]);
-
-  [_manager onNativeAdWillPresentScreen:ad];
-  NSData *presentScreenData = [self getDataForEvent:@"onNativeAdWillPresentScreen" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:presentScreenData]));
-
-  [_manager onNativeAdDidDismissScreen:ad];
-  NSData *didDismissData = [self getDataForEvent:@"onNativeAdDidDismissScreen" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:didDismissData]));
-
-  [_manager onNativeAdWillDismissScreen:ad];
-  NSData *willDismissData = [self getDataForEvent:@"onNativeAdWillDismissScreen" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:willDismissData]));
+  NSData *data = [_methodCodec
+      encodeMethodCall:[FlutterMethodCall methodCallWithMethodName:@"onAdEvent"
+                                                         arguments:@{
+                                                           @"adId" : @1,
+                                                           @"eventName" : @"onNativeAdClicked"
+                                                         }]];
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
 }
 
-- (void)testAdInstanceManagerOnRewardedAdUserEarnedReward {
-  FLTRewardedAd *ad = [[FLTRewardedAd alloc] initWithAdUnitId:@"testId"
-                                                      request:[[FLTAdRequest alloc] init]
-                                           rootViewController:OCMClassMock([UIViewController class])
-                                serverSideVerificationOptions:nil];
+- (void)testOnNativeAdImpression {
+  FLTNativeAd *ad =
+      [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
+                                    request:[[FLTAdRequest alloc] init]
+                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
+                              customOptions:nil
+                         rootViewController:OCMClassMock([UIViewController class])];
+  [_manager loadAd:ad adId:@(1)];
+
+  [_manager onNativeAdImpression:ad];
+  NSData *data = [_methodCodec
+      encodeMethodCall:[FlutterMethodCall methodCallWithMethodName:@"onAdEvent"
+                                                         arguments:@{
+                                                           @"adId" : @1,
+                                                           @"eventName" : @"onNativeAdImpression"
+                                                         }]];
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
+}
+
+- (void)testOnAdOpened {
+  FLTNativeAd *ad =
+      [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
+                                    request:[[FLTAdRequest alloc] init]
+                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
+                              customOptions:nil
+                         rootViewController:OCMClassMock([UIViewController class])];
+  [_manager loadAd:ad adId:@(1)];
+
+  [_manager onAdOpened:ad];
+  NSData *data = [_methodCodec
+      encodeMethodCall:[FlutterMethodCall
+                           methodCallWithMethodName:@"onAdEvent"
+                                          arguments:@{@"adId" : @1, @"eventName" : @"onAdOpened"}]];
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
+}
+
+- (void)testOnApplicationExit {
+  FLTNativeAd *ad =
+      [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
+                                    request:[[FLTAdRequest alloc] init]
+                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
+                              customOptions:nil
+                         rootViewController:OCMClassMock([UIViewController class])];
+  [_manager loadAd:ad adId:@(1)];
+
+  [_manager onApplicationExit:ad];
+  NSData *data = [_methodCodec
+      encodeMethodCall:[FlutterMethodCall methodCallWithMethodName:@"onAdEvent"
+                                                         arguments:@{
+                                                           @"adId" : @1,
+                                                           @"eventName" : @"onApplicationExit"
+                                                         }]];
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
+}
+
+- (void)testOnAdClosed {
+  FLTNativeAd *ad =
+      [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
+                                    request:[[FLTAdRequest alloc] init]
+                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
+                              customOptions:nil
+                         rootViewController:OCMClassMock([UIViewController class])];
+  [_manager loadAd:ad adId:@(1)];
+
+  [_manager onAdClosed:ad];
+  NSData *data = [_methodCodec
+      encodeMethodCall:[FlutterMethodCall
+                           methodCallWithMethodName:@"onAdEvent"
+                                          arguments:@{@"adId" : @1, @"eventName" : @"onAdClosed"}]];
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
+}
+
+- (void)testOnRewardedAdUserEarnedReward {
+  FLTRewardedAd *ad =
+      [[FLTRewardedAd alloc] initWithAdUnitId:@"testId"
+                                      request:[[FLTAdRequest alloc] init]
+                           rootViewController:OCMClassMock([UIViewController class])];
   [_manager loadAd:ad adId:@(1)];
 
   [_manager onRewardedAdUserEarnedReward:ad
@@ -241,95 +466,6 @@ static NSString *channel = @"plugins.flutter.io/google_mobile_ads";
                                                 [[FLTRewardItem alloc] initWithAmount:@(1)
                                                                                  type:@"type"]
                                           }]];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:data]);
+  OCMVerify([_mockMessenger sendOnChannel:@"plugins.flutter.io/google_mobile_ads" message:data]);
 }
-
-- (void)testAdInstanceManagerOnPaidEvent {
-  FLTNativeAd *ad =
-      [[FLTNativeAd alloc] initWithAdUnitId:@"testAdUnitId"
-                                    request:[[FLTAdRequest alloc] init]
-                            nativeAdFactory:OCMProtocolMock(@protocol(FLTNativeAdFactory))
-                              customOptions:nil
-                         rootViewController:OCMClassMock([UIViewController class])];
-  [_manager loadAd:ad adId:@(1)];
-
-  NSDecimalNumber *valueDecimal = [[NSDecimalNumber alloc] initWithInt:1];
-  FLTAdValue *value = [[FLTAdValue alloc] initWithValue:valueDecimal
-                                              precision:12
-                                           currencyCode:@"code"];
-
-  [_manager onPaidEvent:ad value:value];
-  NSData *data = [_methodCodec
-      encodeMethodCall:[FlutterMethodCall
-                           methodCallWithMethodName:@"onAdEvent"
-                                          arguments:@{
-                                            @"adId" : @1,
-                                            @"eventName" : @"onPaidEvent",
-                                            @"valueMicros" : value.valueMicros,
-                                            @"precision" : [NSNumber numberWithInteger:12],
-                                            @"currencyCode" : @"code"
-                                          }]];
-  OCMVerify([_mockMessenger sendOnChannel:channel message:data]);
-}
-
-- (void)testBannerEvents {
-  FLTAdSize *size = [[FLTAdSize alloc] initWithWidth:@(1) height:@(2)];
-  FLTBannerAd *ad = [[FLTBannerAd alloc] initWithAdUnitId:@"testId"
-                                                     size:size
-                                                  request:[[FLTAdRequest alloc] init]
-                                       rootViewController:OCMClassMock([UIViewController class])];
-  FLTBannerAd *mockBannerAd = OCMPartialMock(ad);
-  OCMStub([mockBannerAd load]);
-
-  [_manager loadAd:ad adId:@(1)];
-
-  [_manager onBannerImpression:ad];
-  NSData *impressionData = [self getDataForEvent:@"onBannerImpression" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:impressionData]));
-
-  [_manager onBannerWillDismissScreen:ad];
-  NSData *willDismissData = [self getDataForEvent:@"onBannerWillDismissScreen" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:willDismissData]));
-
-  [_manager onBannerDidDismissScreen:ad];
-  NSData *didDismissData = [self getDataForEvent:@"onBannerDidDismissScreen" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:didDismissData]));
-
-  [_manager onBannerWillPresentScreen:ad];
-  NSData *willPresentData = [self getDataForEvent:@"onBannerWillPresentScreen" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:willPresentData]));
-}
-
-- (void)testFullScreenEvents {
-  FLTRewardedAd *ad = [[FLTRewardedAd alloc] initWithAdUnitId:@"testId"
-                                                      request:[[FLTAdRequest alloc] init]
-                                           rootViewController:OCMClassMock([UIViewController class])
-                                serverSideVerificationOptions:nil];
-  [_manager loadAd:ad adId:@(1)];
-
-  [_manager onAdDidPresentFullScreenContent:ad];
-  NSData *didPresentData = [self getDataForEvent:@"onAdDidPresentFullScreenContent" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:didPresentData]));
-
-  [_manager adDidDismissFullScreenContent:ad];
-  NSData *didDismissData = [self getDataForEvent:@"adDidDismissFullScreenContent" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:didDismissData]));
-
-  [_manager adWillDismissFullScreenContent:ad];
-  NSData *willDismissData = [self getDataForEvent:@"adWillDismissFullScreenContent" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:willDismissData]));
-
-  [_manager adDidRecordImpression:ad];
-  NSData *impressionData = [self getDataForEvent:@"adDidRecordImpression" adId:@1];
-  OCMVerify(([_mockMessenger sendOnChannel:channel message:impressionData]));
-}
-
-// Helper method to create encoded data for an event and ad id.
-- (NSData *)getDataForEvent:(NSString *)name adId:(NSNumber *)adId {
-  return [_methodCodec
-      encodeMethodCall:[FlutterMethodCall
-                           methodCallWithMethodName:@"onAdEvent"
-                                          arguments:@{@"adId" : @1, @"eventName" : name}]];
-}
-
 @end

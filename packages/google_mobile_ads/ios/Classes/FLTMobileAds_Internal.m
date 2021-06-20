@@ -48,12 +48,3 @@
   return self;
 }
 @end
-
-@implementation FLTServerSideVerificationOptions
-- (GADServerSideVerificationOptions *_Nonnull)asGADServerSideVerificationOptions {
-  GADServerSideVerificationOptions *options = [[GADServerSideVerificationOptions alloc] init];
-  options.userIdentifier = _userIdentifier;
-  options.customRewardString = _customRewardString;
-  return options;
-}
-@end

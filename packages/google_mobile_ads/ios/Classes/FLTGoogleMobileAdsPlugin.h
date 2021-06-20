@@ -24,24 +24,24 @@
   NSLog((@"GoogleMobileAdsPlugin <warning> " format), ##__VA_ARGS__)
 
 /**
- * Creates a `GADNativeAdView` to be shown in a Flutter app.
+ * Creates a `GADUnifiedNativeAdView` to be shown in a Flutter app.
  *
  * When a Native Ad is created in Dart, this protocol is responsible for building the
- * `GADNativeAdView`. Register a class that implements this with a `FLTGoogleMobileAdsPlugin`
+ * `GADUnifiedNativeAdView`. Register a class that implements this with a `FLTGoogleMobileAdsPlugin`
  * to use in conjunction with Flutter.
  */
 @protocol FLTNativeAdFactory
 @required
 /**
- * Creates a `GADNativeAdView` with a `GADNativeAd`.
+ * Creates a `GADUnifiedNativeAdView` with a `GADUnifiedNativeAd`.
  *
- * @param nativeAd Ad information used to create a `GADNativeAdView`
+ * @param nativeAd Ad information used to create a `GADUnifiedNativeAdView`
  * @param customOptions Used to pass additional custom options to create the
- * `GADNativeAdView`. Nullable.
- * @return a `GADNativeAdView` that is overlaid on top of the FlutterView.
+ * `GADUnifiedNativeAdView`. Nullable.
+ * @return a `GADUnifiedNativeAdView` that is overlaid on top of the FlutterView.
  */
-- (GADNativeAdView *_Nullable)createNativeAd:(GADNativeAd *_Nonnull)nativeAd
-                               customOptions:(NSDictionary *_Nullable)customOptions;
+- (GADUnifiedNativeAdView *_Nullable)createNativeAd:(GADUnifiedNativeAd *_Nonnull)nativeAd
+                                      customOptions:(NSDictionary *_Nullable)customOptions;
 @end
 
 /**
@@ -49,13 +49,13 @@
  */
 @interface FLTGoogleMobileAdsPlugin : NSObject <FlutterPlugin>
 /**
- * Adds a `FLTNativeAdFactory` used to create a `GADNativeAdView`s from a Native Ad created
+ * Adds a `FLTNativeAdFactory` used to create a `GADUnifiedNativeAdView`s from a Native Ad created
  * in Dart.
  *
  * @param registry maintains access to a `FLTGoogleMobileAdsPlugin`` instance.
  * @param factoryId a unique identifier for the ad factory. The Native Ad created in Dart includes
  *     a parameter that refers to this.
- * @param nativeAdFactory creates `GADNativeAdView`s when a Native Ad is created in Dart.
+ * @param nativeAdFactory creates `GADUnifiedNativeAdView`s when a Native Ad is created in Dart.
  * @return whether the factoryId is unique and the nativeAdFactory was successfully added.
  */
 + (BOOL)registerNativeAdFactory:(id<FlutterPluginRegistry> _Nonnull)registry
@@ -63,7 +63,7 @@
                 nativeAdFactory:(id<FLTNativeAdFactory> _Nonnull)nativeAdFactory;
 
 /**
- * Unregisters a `FLTNativeAdFactory` used to create `GADNativeAdView`s from a Native Ad
+ * Unregisters a `FLTNativeAdFactory` used to create `GADUnifiedNativeAdView`s from a Native Ad
  * created in Dart.
  *
  * @param registry maintains access to a `FLTGoogleMobileAdsPlugin `instance.
