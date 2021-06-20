@@ -106,6 +106,7 @@
                  @"eventName" : @"onAdFailedToLoad",
                  @"loadAdError" : error
                }];
+  }
     @catch (NSException *exception) {
         NSLog(@"onAdFailedToLoad %@", exception.reason);
     }
@@ -123,6 +124,7 @@
                  @"name" : name,
                  @"data" : data
                }];
+  }
     @catch (NSException *exception) {
         NSLog(@"onAppEvent %@", exception.reason);
     }
