@@ -88,11 +88,7 @@
     @try {
       NSNumber *adId = [self adIdFor:ad];
       [_channel invokeMethod:@"onAdEvent"
-                    arguments:@{
-                        @"adId" : adId,
-                        @"eventName" : @"onAdLoaded",
-                        @"responseInfo" : [[FLTGADResponseInfo alloc] initWithResponseInfo:responseInfo]
-                    }];
+               arguments:@{@"adId" : adId, @"eventName" : @"onAdLoaded"}];
     }
     @catch (NSException *exception) {
         NSLog(@"onAdLoaded %@", exception.reason);
